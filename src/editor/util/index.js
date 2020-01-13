@@ -1,6 +1,0 @@
-export { default as AbstractWriter } from './AbstractWriter'
-export { default as NumberedLabelGenerator } from './NumberedLabelGenerator'
-export { default as ReferenceManager } from './ReferenceManager'
-export { default as SaveHandler } from './SaveHandler'
-export * from './nodeHelpers'
-export * from './xrefHelpers'

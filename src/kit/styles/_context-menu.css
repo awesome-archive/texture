@@ -1,0 +1,16 @@
+.sc-context-menu {
+  position: absolute;
+  background: var(--t-background-color);
+  border-radius: var(--t-border-radius);
+  font-size: var(--t-small-font-size);
+  z-index: 1000;
+  box-shadow: var(--t-default-box-shadow);
+  padding: 4px;
+}
+
+.sc-context-menu.sm-hidden {
+  /* we don't use display none because we want to determine the content's width */
+  visibility: hidden;
+  left: 0px;
+  top: 0px;
+}

@@ -1,0 +1,172 @@
+:root {
+   /* Font families */
+   /* ----------------------------------------------------------------------*/
+
+   /* Used for interface elements */
+   --t-interface-font: 'Inter UI', system-ui, sans-serif;
+   /* Used for flowing text, such as paragraphs */
+   --t-text-font: 'Inter UI', system-ui, sans-serif;
+   /* used for code, URLS, etc */
+   --t-code-font: Monaco, 'Courier New';
+
+   /* Font sizes */
+   /* ----------------------------------------------------------------------*/
+
+   /* Used for main text */
+   --t-text-font-size: 17px;
+   /* Used for authors list */
+   --t-large-font-size: 19px;
+   /* Table of contents */
+   --t-small-font-size: 14px;
+   /* Used in toolbars and section labels */
+   --t-tiny-font-size: 12px;
+   /* Used in toolbar dropdown menus */
+   --t-dropdown-font-size: 11px;
+   /* E.g. article title */
+   --t-title-font-size: 36px;
+   /* Heading level 1 */
+   --t-h1-font-size: 23px;
+   /* Heading level 2 */
+   --t-h2-font-size: 21px;
+   /* Heading level 3 */
+   --t-h3-font-size: 19px;
+   /* Heading level 4 */
+   --t-h4-font-size: 17px;
+
+   /* Font weights */
+   /* ----------------------------------------------------------------------*/
+
+   --t-normal-font-weight: 400; /* Normal text weight */
+   --t-bold-font-weight: 500; /* Strong emphasis */
+
+   /* Line heights */
+   /* ----------------------------------------------------------------------*/
+
+   /* Used in main text */
+   --t-default-line-height: 1.5;
+
+   /* Colors */
+   /* ----------------------------------------------------------------------*/
+
+  /* Default background color, used when we need to cover content, e.g. in overlays */
+  --t-background-color: #fff;
+  /* Light (greyish) background color */
+  --t-light-background-color: #2E72EA0a;
+  /* Background for action buttons */
+  --t-action-background-color: #4e4e4e;
+  /* Button backgorund */
+  --t-default-button-background: #f7f7f9;
+  /* Main text color, used in the article */
+  --t-text-color: #111;
+  /* Used to display error message */
+  --t-error-text-color: #c80000;
+  /* Inverted text color, to put on dark elements */
+  --t-inverted-text-color: #fff;
+  /* Used for section labels, card labels etc. */
+  --t-light-text-color: #888;
+  /* Used for input placeholders */
+  --t-placeholder-text-color: #ccc;
+  /* Used for focus border, e.g. selected card, or text input */
+  --t-focus-color: rgb(145, 189, 240);
+  /* E.g. citations of references, figures, etc. */
+  --t-action-color: #2e72ea;
+  /* Used to display warning icons */
+  --t-warning-color: #ffaf46;
+  /* Used to display error message */
+  --t-error-color: rgba(200, 0, 0, 0.25);
+  /* Default light border color */
+  --t-border-color: #ddd;
+
+   /* Paddings */
+   /* ----------------------------------------------------------------------*/
+  --t-half-spacing: 10px; /* Half of the default spacing */
+  --t-default-spacing: 20px; /* Default padding to create some whitespace, e.g. in figure */
+  --t-text-spacing: 15px; /* Used as the margin between content elements */
+  --t-double-spacing: 40px; /* Double of the default spacing */
+  --t-input-padding: 4px; /* Padding used input boxes */
+  --t-cell-padding: 6px; /* Padding used table cells */
+  --t-button-padding: 7px; /* Padding used by buttons */
+
+   /* Margins */
+   /* ----------------------------------------------------------------------*/
+
+  --t-flowing-content-margin: 20px 0; /* Space between content elements, e.g. between two paragraphs */
+
+   /* Borders */
+   /* ----------------------------------------------------------------------*/
+
+  --t-input-default-border: 2px solid transparent;
+  --t-input-outline-border: 2px solid var(--t-border-color);
+  --t-input-focus-border: 2px solid rgb(145, 189, 240);
+  --t-negative-input-padding: -6px; /* This must be the negative of input padding + default border width */
+  --t-negative-list-padding: -4px; /* Same, but without borders. Used in comma-separated lists. */
+  --t-border-radius: 5px; /* Default border radius for rounded corners */
+  --t-tool-border-radius: 3px; /* Default border radius for tools */
+  --t-default-border: 1px solid var(--t-border-color);
+
+   /* Box shadows */
+   /* ----------------------------------------------------------------------*/
+
+  --t-default-box-shadow: 0 0 0 0.75pt #d1d1d1, 0 0 3pt 0.75pt #ccc;
+  --t-popup-box-shadow: 0 2px 10px -2px rgba(0,0,0,0.8);
+
+   /* Substance Styles */
+   /* ----------------------------------------------------------------------*/
+  --t-small-layout-width: 300px;
+  --t-medium-layout-width: 620px;
+  --t-large-layout-width: 960px;
+  --t-separator-color: rgba(0,0,0,0.05);
+}
+
+.sc-texture {
+  line-height: var(--t-default-line-height);
+  height: 100%;
+  position: relative;
+  font-family: var(--t-interface-font)
+}
+
+.sc-texture a {
+  color: var(--t-text-color);
+}
+
+/* TODO: move these in specific files for sake of consistency */
+
+.sc-texture .sc-annotation.sm-italic {
+  font-style: italic;
+}
+
+.sc-texture .sc-annotation.sm-bold {
+  font-weight: bold;
+}
+
+.sc-texture .sc-annotation.sm-small-caps {
+  font-variant: small-caps;
+}
+
+.sc-texture .sc-annotation.sm-subscript {
+  vertical-align: sub;
+  font-size: smaller;
+}
+
+.sc-texture .sc-annotation.sm-superscript {
+  vertical-align: super;
+  font-size: smaller;
+}
+
+.sc-texture .sc-annotation.sm-monospace, .sc-texture .sm-preformat {
+  /* Attention: double monospace here for correcting the inheritance
+  and scaling of font size in all browsers */
+  font-family: monospace, monospace;
+}
+
+.sc-texture .sm-overline {
+  text-decoration: overline;
+}
+
+.sc-texture .sm-strike-through {
+  text-decoration: line-through;
+}
+
+.sc-texture .sm-underline {
+  text-decoration: underline;
+}

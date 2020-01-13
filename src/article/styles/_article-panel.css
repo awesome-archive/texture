@@ -1,0 +1,61 @@
+.sc-article-panel {
+  display: flex;
+  flex-flow: row nowrap;
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+}
+
+.sc-article-panel .se-nav-bar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 100%;
+  border-right: 1px solid #b5b5b5;
+  z-index: 99;
+}
+
+.sc-article-panel .se-nav-bar > .sc-toolbar > .se-active-tools .sc-tool-group {
+  display: block;
+}
+
+.sc-article-panel .sc-manuscript-view {
+  flex-grow: 1;
+}
+
+.sc-article-panel .sc-toolbar .se-active-tools {
+  position: relative;
+}
+
+/* View switcher hacks */
+.sc-article-panel .sc-toolbar .se-active-tools .sm-mode {
+  flex: 0 0 260px;
+  height: 24px;
+  margin: 2px;
+}
+
+.sc-article-panel .sc-toolbar .se-active-tools .sm-mode .se-keyboard-shortcut {
+  padding: 0;
+}
+
+.sc-toolbar .se-active-tools .sm-mobile-mode,
+.sm-compact .sc-toolbar .se-active-tools .sm-mode {
+  display: none;
+}
+
+.sm-compact .sc-toolbar .se-active-tools .sm-mobile-mode {
+  display: block;
+}
+
+/* Context menu dropdown */
+.sc-article-panel .sc-toolbar .sc-tool-dropdown.sm-context-tools > .se-choices {
+  position: absolute;
+  top: 30px;
+  left: initial;
+  right: 0;
+}
+
+.sc-article-panel > .sm-compact .sc-find-and-replace-dialog {
+  margin: 0 auto;
+}

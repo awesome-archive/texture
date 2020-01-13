@@ -1,258 +1,24 @@
+/* eslint-disable no-template-curly-in-string */
 const b = require('substance-bundler')
 const fs = require('fs')
 const path = require('path')
 const fork = require('substance-bundler/extensions/fork')
-// used to bundle example files for demo
 const vfs = require('substance-bundler/extensions/vfs')
+const rollup = require('substance-bundler/extensions/rollup')
+const yazl = require('yazl')
+const compileSchema = require('texture-xml-utils/bundler/compileSchema')
+const generateSchemaDocumentation = require('texture-xml-utils/bundler/generateSchemaDocumentation')
+const commonjs = require('rollup-plugin-commonjs')
+const nodeResolve = require('rollup-plugin-node-resolve')
+const istanbul = require('substance-bundler/extensions/rollup/rollup-plugin-istanbul')
 
 const DIST = 'dist/'
+const APPDIST = 'app-dist/'
 const TMP = 'tmp/'
-const RNG_SEARCH_DIRS = [
-  path.join(__dirname, 'src', 'article')
-]
 
-const RNG_FILES = [
-  'src/article/JATS-publishing.rng',
-  'src/article/JATS-archiving.rng',
-  'src/article/DarArticle.rng',
-  'src/article/TextureArticle.rng'
-]
-
-b.task('clean', function() {
-  b.rm(DIST)
-  b.rm(TMP)
-})
-
-b.task('assets', function() {
-  b.copy('./data', DIST+'data')
-  b.copy('./node_modules/font-awesome', DIST+'font-awesome')
-  b.copy('./node_modules/substance/dist', DIST+'substance/dist')
-
-  b.css('texture.css', DIST+'texture.css')
-  b.css('./node_modules/substance/substance-pagestyle.css', DIST+'texture-pagestyle.css')
-  b.css('./node_modules/substance/substance-reset.css', DIST+'texture-reset.css')
-
-  // Electron app-related
-  b.copy('./app/*', DIST, { root: './app' })
-})
-
-b.task('single-jats-file', _singleJATSFile)
-
-b.task('compile:jats', () => {
-  _compileSchema('JATS-publishing', RNG_FILES[0], RNG_SEARCH_DIRS, RNG_FILES.slice(0,1))
-  _compileSchema('JATS-archiving', RNG_FILES[1], RNG_SEARCH_DIRS, RNG_FILES.slice(1,2))
-})
-
-b.task('compile:dar-article', () => {
-  _compileSchema('DarArticle', RNG_FILES[2], RNG_SEARCH_DIRS, RNG_FILES.slice(0,3))
-})
-
-b.task('compile:texture-article', () => {
-  _compileSchema('TextureArticle', RNG_FILES[3], RNG_SEARCH_DIRS, RNG_FILES.slice(0,4))
-})
-
-b.task('compile:debug', () => {
-  _compileSchema('JATS-publishing', RNG_FILES[0], RNG_SEARCH_DIRS, RNG_FILES.slice(0,1), { debug: true })
-  _compileSchema('JATS-archiving', RNG_FILES[1], RNG_SEARCH_DIRS, RNG_FILES.slice(1,2), { debug: true })
-  _compileSchema('DarArticle', RNG_FILES[2], RNG_SEARCH_DIRS, RNG_FILES.slice(0,3), { debug: true })
-  _compileSchema('TextureArticle', RNG_FILES[3], RNG_SEARCH_DIRS, RNG_FILES.slice(0,4), { debug: true })
-})
-
-b.task('compile:schema', ['compile:jats', 'compile:dar-article', 'compile:texture-article'])
-
-b.task('build:browser', ['compile:schema'], () => {
-  _buildLib(DIST, 'browser')
-})
-
-b.task('build:nodejs', ['compile:schema'], () => {
-  _buildLib(DIST, 'nodejs')
-})
-
-b.task('build:lib', ['compile:schema'], () => {
-  _buildLib(DIST, 'all')
-})
-
-
-b.task('test:assets', () => {
-  vfs(b, {
-    src: ['./test/fixture/**/*.xml'],
-    dest: './tmp/test-vfs.js',
-    format: 'es', moduleName: 'vfs'
-  })
-})
-
-b.task('test:browser', ['build:browser', 'test:assets'], () => {
-  b.copy('test/index.html', 'dist/test/index.html')
-  b.copy('node_modules/substance-test/dist/testsuite.js', 'dist/test/testsuite.js')
-  b.copy('node_modules/substance-test/dist/test.css', 'dist/test/test.css')
-  b.js('test/**/*.test.js', {
-    dest: 'dist/test/tests.js',
-    format: 'umd', moduleName: 'tests',
-    external: {
-      'substance': 'window.substance',
-      'substance-test': 'window.substanceTest',
-      'substance-texture': 'window.texture'
-    }
-  })
-})
-.describe('builds the test-suite for the browser (open test/index.html)')
-
-b.task('test:node', ['build:nodejs', 'test:assets'], () => {
-  b.js('test/**/*.test.js', {
-    dest: 'tmp/tests.cjs.js',
-    format: 'cjs',
-    external: ['substance-test', 'substance', 'substance-texture'],
-    // do not require substance-texture from 'node_modules' but from the dist folder
-    paths: {
-      'substance-texture': '../dist/texture.cjs.js'
-    }
-  })
-  fork(b, require.resolve('substance-test/bin/test'), './tmp/tests.cjs.js', { verbose: true })
-})
-.describe('runs the test suite in nodejs')
-
-b.task('examples', () => {
-  vfs(b, {
-    src: ['./data/**/*'],
-    dest: DIST+'/vfs.js',
-    format: 'umd', moduleName: 'vfs',
-    rootDir: path.join(__dirname, 'data')
-  })
-  b.js('./app/editor.js', {
-    targets: [{
-      dest: DIST+'editor.js',
-      format: 'umd',
-      moduleName: 'textureEditor',
-      globals: {
-        'substance': 'window.substance',
-        'substance-texture': 'window.texture'
-      }
-    }],
-    external: ['substance', 'substance-texture']
-  })
-})
-
-// default build: creates a dist folder with a production bundle
-b.task('default', ['clean', 'assets', 'build:browser', 'examples'])
-
-b.task('dev', ['default'])
-
-b.task('publish', ['clean', 'assets', 'compile:schema'], () => {
-  _buildLib(DIST, 'all')
-})
-
-b.task('test', ['test:node'])
-
-
-
-/* HELPERS */
-
-function _buildLib(DEST, platform) {
-  let targets = []
-  if (platform === 'browser' || platform === 'all') {
-    targets.push({
-      dest: DEST+'texture.js',
-      format: 'umd', moduleName: 'texture', sourceMapRoot: __dirname, sourceMapPrefix: 'texture'
-    })
-  }
-  if (platform === 'nodejs' || platform === 'all') {
-    targets.push({
-      dest: DEST+'texture.cjs.js',
-      format: 'cjs'
-    })
-  }
-  if (platform === 'es' || platform === 'all') {
-    targets.push({
-      dest: DEST+'texture.es.js',
-      format: 'es'
-    })
-  }
-  b.js('./index.es.js', {
-    targets,
-    external: ['substance'],
-    globals: {
-      'substance': 'substance',
-    }
-  })
-}
-
-
-function _compileSchema(name, src, searchDirs, deps, options = {} ) {
-  const DEST = `tmp/${name}.data.js`
-  const ISSUES = `tmp/${name}.issues.txt`
-  const SCHEMA = `tmp/${name}.schema.md`
-  const entry = path.basename(src)
-  b.custom(`Compiling schema '${name}'...`, {
-    src: deps,
-    dest: DEST,
-    execute() {
-      const { compileRNG, checkSchema } = require('substance')
-      const xmlSchema = compileRNG(fs, searchDirs, entry)
-      b.writeFileSync(DEST, `export default ${JSON.stringify(xmlSchema)}`)
-      b.writeFileSync(SCHEMA, xmlSchema.toMD())
-      if (options.debug) {
-        const issues = checkSchema(xmlSchema)
-        const issuesData = [`${issues.length} issues:`, ''].concat(issues).join('\n')
-        b.writeFileSync(ISSUES, issuesData)
-      }
-    }
-  })
-}
-
-// we used this internally just to get a single-file version of
-// the offficial JATS 1.1 rng data set
-function _singleJATSFile() {
-  [{
-    RNG_DIR: 'data/jats/archiving',
-    ENTRY: 'JATS-archive-oasis-article1-mathml3.rng',
-    DEST: 'src/article/JATS-archiving.rng',
-  },
-  {
-    RNG_DIR: 'data/jats/publishing',
-    ENTRY: 'JATS-journalpublishing-oasis-article1-mathml3.rng',
-    DEST: 'src/article/JATS-publishing.rng',
-  }].forEach(({ RNG_DIR, ENTRY, DEST}) => {
-    b.custom(`Pulling JATS spec into a single file...`, {
-      src: [RNG_DIR+'/*.rng'],
-      dest: DEST,
-      execute() {
-        const { loadRNG } = require('substance')
-        let rng = loadRNG(fs, [RNG_DIR], ENTRY)
-        // sort definitions by name
-        let grammar = rng.find('grammar')
-        let others = []
-        let defines = []
-        grammar.getChildren().forEach((child) => {
-          if (child.tagName === 'define') {
-            defines.push(child)
-          } else {
-            others.push(child)
-          }
-        })
-        defines.sort((a,b) => {
-          const aname = a.getAttribute('name').toLowerCase()
-          const bname = b.getAttribute('name').toLowerCase()
-          if (aname < bname) return -1
-          if (bname < aname) return 1
-          return 0
-        })
-        grammar.empty()
-        defines.concat(others).forEach((el) => {
-          grammar.appendChild('\n  ')
-          grammar.appendChild(el)
-        })
-        let xml = rng.serialize()
-        b.writeFileSync(DEST, xml)
-      }
-    })
-  })
-}
-
-/* Server */
-// TODO: make this configurable
-const port = 4000
+// Server configuration
+let port = process.env['PORT'] || 4000
 b.setServerPort(port)
-
 b.yargs.option('d', {
   type: 'string',
   alias: 'rootDir',
@@ -260,14 +26,396 @@ b.yargs.option('d', {
 })
 let argv = b.yargs.argv
 if (argv.d) {
-  const darServer = require('dar-server')
+  const serve = require('./src/dar/serve')
   const rootDir = argv.d
   const archiveDir = path.resolve(path.join(__dirname, rootDir))
-  darServer.serve(b.server, {
+  serve(b.server, {
     port,
-    serverUrl: 'http://localhost:'+port,
+    serverUrl: 'http://localhost:' + port,
     rootDir: archiveDir,
     apiUrl: '/archives'
   })
 }
 b.serve({ static: true, route: '/', folder: './dist' })
+
+b.task('default', ['dev'])
+
+b.task('clean', function () {
+  b.rm(DIST)
+  b.rm(TMP)
+  b.rm(APPDIST)
+}).describe('removes all generated files and folders.')
+
+b.task('publish', ['clean', 'build:schema', 'build:assets', 'build:lib', 'build:demo'])
+  .describe('builds the release bundle (library + web).')
+
+b.task('lib', ['clean', 'build:schema', 'build:assets', 'build:lib'])
+  .describe('builds the library bundle.')
+
+b.task('dev', ['clean', 'build:schema', 'build:assets', 'build:demo'])
+  .describe('builds the web bundle.')
+
+b.task('desktop', ['clean', 'build:schema', 'build:assets', 'build:lib:browser', 'build:desktop'])
+  .describe('builds the desktop bundle (electron).')
+
+b.task('test-nodejs', ['clean', 'build:schema', 'build:test-assets'])
+  .describe('prepares everything necessary to run tests in node.')
+
+b.task('test-browser', ['clean', 'build:schema', 'build:lib:browser', 'build:test-assets', 'build:test-browser'])
+  .describe('builds the test-suite for the browser.')
+
+// an alias because in all our other projects it is named this way
+b.task('test:browser', ['test-browser'])
+
+// spawns electron after build is ready
+b.task('run-app', ['desktop'], () => {
+  // Note: `await=false` is important, as otherwise bundler would await this to finish
+  fork(b, require.resolve('electron/cli.js'), '.', { verbose: true, cwd: APPDIST, await: false })
+}).describe('runs the application in electron.')
+
+b.task('schema:texture-article', () => {
+  let rngFile = path.join(__dirname, 'src', 'article', 'TextureJATS.rng')
+  compileSchema(b, rngFile, {
+    dest: TMP + 'TextureJATS.data.js',
+    searchDirs: [
+      path.join(__dirname, 'node_modules', 'texture-plugin-jats', 'rng')
+    ]
+  })
+  generateSchemaDocumentation(b, rngFile, {
+    dest: 'docs/TextureJATS.md',
+    searchDirs: [
+      path.join(__dirname, 'node_modules', 'texture-plugin-jats', 'rng')
+    ],
+    headingLevelOffset: 1,
+    ammend (md) {
+      return [
+        '# Texture Article',
+        '',
+        'This schema defines a strict sub-set of JATS Archiving 1.2.',
+        '',
+        md
+      ].join('\n')
+    }
+  })
+})
+
+b.task('build:assets', function () {
+  b.copy('./node_modules/font-awesome', DIST + 'lib/font-awesome')
+  b.copy('./node_modules/inter-ui', DIST + 'lib/inter-ui')
+  b.copy('./node_modules/katex/dist', DIST + 'lib/katex')
+  b.copy('./node_modules/substance/dist/*.css*', DIST + 'lib/substance/')
+  b.copy('./node_modules/substance/dist/substance.js*', DIST + 'lib/substance/')
+  b.copy('./node_modules/substance/dist/substance.min.js*', DIST + 'lib/substance/')
+  b.copy('./node_modules/texture-plugin-jats/dist', DIST + 'plugins/texture-plugin-jats')
+  b.css('texture.css', DIST + 'texture.css')
+  b.css('texture-reset.css', DIST + 'texture-reset.css')
+})
+
+b.task('build:schema', ['schema:texture-article'])
+
+b.task('build:lib:browser', () => {
+  _buildLib(DIST, 'browser')
+})
+
+b.task('build:lib:nodejs', () => {
+  _buildLib(DIST, 'nodejs')
+})
+
+b.task('build:lib', () => {
+  _buildLib(DIST, 'all')
+})
+
+b.task('build:desktop', ['build:desktop:dars'], () => {
+  b.copy('builds/desktop/index.html', APPDIST)
+  b.copy('builds/desktop/build-resources', APPDIST)
+  // FIXME: this command leads to an extra run when a  file is updated
+  // .. instead copying the files explicitly for now
+  // b.copy('dist', APPDIST+'lib/')
+  b.copy('./node_modules/font-awesome', APPDIST + 'lib/')
+  b.copy('./node_modules/katex/dist', APPDIST + 'lib/katex')
+  b.copy('./node_modules/inter-ui', APPDIST + 'lib/')
+  b.copy('./node_modules/substance/dist/*.css*', APPDIST + 'lib/substance/')
+  b.copy('./node_modules/substance/dist/substance.min.js*', APPDIST + 'lib/substance/')
+  ;[
+    'texture.js',
+    'texture.css',
+    'texture-reset.css'
+  ].forEach(f => {
+    b.copy(`dist/${f}`, APPDIST + 'lib/')
+    b.copy(`dist/${f}.map`, APPDIST + 'lib/')
+  })
+
+  // TODO: maybe we could come up with an extension
+  // that expands a source file using a given dict.
+  b.custom('Creating application package.json...', {
+    src: 'builds/desktop/package.json.in',
+    dest: APPDIST + 'package.json',
+    execute () {
+      let { version, dependencies, devDependencies } = require('./package.json')
+      let tpl = fs.readFileSync('builds/desktop/package.json.in', 'utf8')
+      let out = tpl.replace('${version}', version)
+        .replace('${electronVersion}', devDependencies.electron)
+        .replace('${dependencies}', JSON.stringify(dependencies))
+      fs.writeFileSync(APPDIST + 'package.json', out)
+    }
+  })
+  rollup(b, {
+    input: 'builds/desktop/main.js',
+    output: {
+      file: APPDIST + 'main.js',
+      format: 'cjs'
+    },
+    external: ['electron', 'path', 'url'],
+    plugins: [
+      nodeResolve(),
+      commonjs({
+        include: 'node_modules/**'
+      })
+    ]
+  })
+  rollup(b, {
+    input: 'builds/desktop/app.js',
+    output: {
+      file: APPDIST + 'app.js',
+      format: 'umd',
+      name: 'textureApp',
+      globals: {
+        'substance': 'substance',
+        'substance-texture': 'texture',
+        'katex': 'katex'
+      }
+    },
+    external: [ 'substance', 'substance-texture', 'katex' ],
+    plugins: [
+      nodeResolve(),
+      commonjs({
+        include: 'node_modules/**'
+      })
+    ]
+  })
+  // execute 'install-app-deps'
+  fork(b, require.resolve('electron-builder/out/cli/cli.js'), 'install-app-deps', { verbose: true, cwd: APPDIST, await: true })
+})
+
+b.task('build:desktop:dars', () => {
+  // templates
+  _packDar('data/blank', APPDIST + 'templates/blank.dar')
+  _packDar('data/blank-figure-package', APPDIST + 'templates/blank-figure-package.dar')
+  // examples
+  _packDar('data/elife-32671', APPDIST + 'examples/elife-32671.dar')
+  _packDar('data/kitchen-sink', APPDIST + 'examples/kitchen-sink.dar')
+})
+
+b.task('build:demo:vfs', () => {
+  b.copy('data', DIST + 'demo/data')
+  vfs(b, {
+    src: ['./data/**/*'],
+    dest: DIST + 'demo/vfs.js',
+    format: 'umd',
+    moduleName: 'vfs',
+    rootDir: path.join(__dirname, 'data')
+  })
+})
+
+b.task('build:demo', ['build:demo:vfs', 'build:lib:browser'], () => {
+  b.copy('builds/demo/index.html', DIST)
+  rollup(b, {
+    input: 'builds/demo/demo.js',
+    external: ['substance', 'substance-texture', 'katex'],
+    output: {
+      file: DIST + 'demo/demo.js',
+      format: 'umd',
+      name: 'TextureDemo',
+      globals: {
+        'substance': 'substance',
+        'substance-texture': 'texture',
+        'katex': 'katex'
+      }
+    }
+  })
+})
+
+b.task('build:test-assets', ['build:demo:vfs', 'build:desktop:dars'], () => {
+  vfs(b, {
+    src: ['./test/fixture/**/*.xml'],
+    dest: DIST + 'test/test-vfs.js',
+    format: 'umd',
+    moduleName: 'TEST_VFS',
+    rootDir: path.join(__dirname, 'test', 'fixture')
+  })
+  // copy a non-minified substance file into test folder
+  b.copy('./node_modules/substance/dist/substance.js*', DIST + 'test/')
+  // NOTE: to be compatible with nodejs test we need to copy the whole path into dist/test/
+  b.copy('./test/fixture', DIST + 'test/test/')
+})
+
+b.task('build:test-browser', ['build:assets', 'build:test-assets'], () => {
+  b.copy('test/index.html', 'dist/test/index.html')
+  b.copy('test/_test.css', 'dist/test/_test.css')
+  b.copy('node_modules/substance-test/dist/substance-test.js*', 'dist/test/')
+  b.copy('node_modules/substance-test/dist/test.css', 'dist/test/test.css')
+
+  const TEST_VFS = path.join(__dirname, 'tmp', 'test-vfs.js')
+  let globals = {
+    'substance': 'substance',
+    'substance-test': 'substanceTest',
+    'substance-texture': 'texture',
+    'katex': 'katex',
+    // TODO: this should be done in the same way as INDEX_JS and TEST_VFS
+    'vfs': 'vfs'
+  }
+  globals[TEST_VFS] = 'testVfs'
+
+  rollup(b, {
+    input: 'test/index.js',
+    external: [
+      'substance',
+      'substance-test',
+      'substance-texture',
+      'katex',
+      'vfs',
+      TEST_VFS
+    ],
+    plugins: [
+      nodeResolve(),
+      commonjs({
+        include: 'node_modules/**'
+      })
+    ],
+    output: {
+      file: 'dist/test/tests.js',
+      format: 'umd',
+      name: 'tests',
+      globals,
+      sourcemap: true
+    }
+  })
+})
+
+b.task('build:coverage:browser', ['build:schema', 'build:test-browser'], () => {
+  _buildCoverageBundle('browser')
+})
+
+b.task('build:coverage:nodejs', ['build:schema', 'build:test-assets'], () => {
+  _buildCoverageBundle('nodejs')
+})
+
+b.task('run:coverage:browser', () => {
+  // Note: `await=false` is important, as otherwise bundler would await this to finish
+  fork(b, require.resolve('electron/cli.js'), '.', '--coverage', { verbose: true, cwd: path.join(__dirname, 'builds', 'test'), await: true })
+})
+
+b.task('run:test:electron', ['test-browser'], () => {
+  // Note: `await=false` is important, as otherwise bundler would await this to finish
+  fork(b, require.resolve('electron/cli.js'), '.', { verbose: true, cwd: path.join(__dirname, 'builds', 'test'), await: false })
+})
+
+function _buildCoverageBundle (target) {
+  let output = []
+  if (target === 'browser') {
+    output.push({
+      file: 'tmp/texture.instrumented.js',
+      format: 'umd',
+      name: 'texture',
+      globals: {
+        'substance': 'substance',
+        'katex': 'katex'
+      }
+    })
+  }
+  if (target === 'nodejs') {
+    output.push({
+      file: 'tmp/texture.instrumented.cjs.js',
+      format: 'cjs'
+    })
+  }
+  rollup(b, {
+    input: './index.js',
+    external: [
+      'substance',
+      'katex'
+    ],
+    plugins: [
+      nodeResolve(),
+      commonjs({
+        include: 'node_modules/**'
+      }),
+      istanbul({
+        include: [
+          'src/**/*.js'
+        ]
+      })
+    ],
+    output
+  })
+}
+
+/* HELPERS */
+
+function _buildLib (DEST, platform) {
+  let output = []
+  if (platform === 'browser' || platform === 'all') {
+    output.push({
+      file: DEST + 'texture.js',
+      format: 'umd',
+      name: 'texture',
+      globals: {
+        'substance': 'substance',
+        'katex': 'katex',
+        'vfs': 'vfs'
+      },
+      sourcemap: true
+    })
+  }
+  if (platform === 'nodejs' || platform === 'all') {
+    output.push({
+      file: DEST + 'texture.cjs.js',
+      format: 'cjs',
+      sourcemap: true
+    })
+  }
+  if (platform === 'es' || platform === 'all') {
+    output.push({
+      file: DEST + 'texture.es.js',
+      format: 'esm',
+      sourcemap: true
+    })
+  }
+  rollup(b, {
+    input: './index.js',
+    external: ['substance', 'katex', 'vfs'],
+    output,
+    plugins: [
+      nodeResolve(),
+      commonjs({
+        include: 'node_modules/**'
+      })
+    ]
+  })
+}
+
+function _packDar (dataFolder, darPath) {
+  b.custom(`Creating ${darPath}...`, {
+    src: dataFolder + '/**/*',
+    dest: darPath,
+    execute (files) {
+      return new Promise((resolve, reject) => {
+        let zipfile = new yazl.ZipFile()
+        for (let f of files) {
+          let relPath = path.relative(dataFolder, f)
+          zipfile.addFile(f, relPath)
+        }
+        zipfile.outputStream.pipe(fs.createWriteStream(darPath))
+          .on('close', (err) => {
+            if (err) {
+              console.error(err)
+              reject(err)
+            } else {
+              resolve()
+            }
+          })
+        zipfile.end()
+      })
+    }
+  })
+}
